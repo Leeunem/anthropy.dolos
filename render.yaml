@@ -8,8 +8,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.4
-      - key: ROUNDS
-        value: 2
       # facile (mots courants) | moyen | difficile (mots rares) | tout
       - key: DIFFICULTY
         value: moyen
