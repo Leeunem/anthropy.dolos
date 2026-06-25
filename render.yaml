@@ -1,3 +1,4 @@
+# Le jeu de l'imposteur — déploiement Render — v0.1.2
 services:
   - type: web
     name: jeu-imposteur
@@ -8,6 +9,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.4
-      # facile (mots courants) | moyen | difficile (mots rares) | tout
-      - key: DIFFICULTY
-        value: moyen
+      # Niveau de difficulté par défaut (l'hôte peut le changer avant chaque partie) :
+      #   1 = mots courants | 2 = courants + concepts | 3 = toute la base
+      - key: DIFFICULTY_LEVEL
+        value: "2"
