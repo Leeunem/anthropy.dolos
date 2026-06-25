@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Le jeu de l'imposteur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#15141d; --ink-2:#1e1c2b; --line:#322f44;
+    --paper:#efe6d2; --paper-ink:#2a2417;
+    --coral:#e2553c; --teal:#5fa195; --gold:#d8a93f; --mute:#8b88a3;
+    --shadow:0 18px 40px -18px rgba(0,0,0,.7);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #221f33 0%, transparent 60%),
+      var(--ink);
+    color:#ece9f5; font-family:Inter,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; min-height:100dvh;
+    display:flex; flex-direction:column; align-items:center;
+    padding:env(safe-area-inset-top) 18px calc(24px + env(safe-area-inset-bottom));
+  }
+  header{text-align:center;margin:34px 0 22px}
+  .eyebrow{font-size:.72rem;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:600}
+  h1{font-family:Fraunces,serif;font-weight:900;font-size:clamp(2.1rem,8vw,3.1rem);line-height:1;margin:.18em 0 0;letter-spacing:-.01em}
+  h1 em{font-style:italic;color:var(--coral)}
+  .stage{width:100%;max-width:520px;flex:1;display:flex;flex-direction:column;justify-content:flex-start}
+  .card{background:var(--ink-2);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow)}
+  .hint{color:var(--mute);font-size:.92rem;line-height:1.5}
+  label{display:block;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin:0 0 8px}
+  input[type=text]{
+    width:100%;background:var(--ink);border:1px solid var(--line);color:inherit;
+    font:500 1.05rem Inter,sans-serif;padding:14px 16px;border-radius:12px;outline:none;
+  }
+  input[type=text]:focus{border-color:var(--gold)}
+  button{
+    font:600 1rem Inter,sans-serif;border:none;border-radius:12px;padding:14px 18px;
+    background:var(--coral);color:#fff;cursor:pointer;width:100%;transition:filter .15s,transform .05s;
+  }
+  button:hover{filter:brightness(1.07)} button:active{transform:translateY(1px)}
+  button:disabled{background:var(--line);color:var(--mute);cursor:not-allowed;filter:none}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--mute)}
+  .row{display:flex;gap:10px;margin-top:14px}
+  .players{list-style:none;margin:16px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+  .players li{background:var(--ink);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:.92rem}
+  .players li.me{border-color:var(--teal);color:#dffaf3}
+  .count{color:var(--mute);font-size:.85rem;margin-top:14px}
+
+  /* note pliée : la révélation du rôle */
+  .note{perspective:1200px;margin:6px auto 0;max-width:360px}
+  .note-inner{cursor:pointer;border-radius:16px;background:linear-gradient(160deg,#f6efe0,var(--paper));
+    color:var(--paper-ink);padding:30px 24px;text-align:center;box-shadow:var(--shadow);
+    transition:transform .5s cubic-bezier(.2,.7,.2,1);transform-style:preserve-3d;position:relative}
+  .note.peek .note-inner{transform:rotateX(-6deg) scale(1.01)}
+  .note .seal{font-size:.74rem;letter-spacing:.28em;text-transform:uppercase;color:#9a8a5f;font-weight:600}
+  .note .tap{font-family:Fraunces,serif;font-size:1.5rem;font-weight:600;margin-top:10px}
+  .note .word{font-family:Fraunces,serif;font-weight:900;font-size:2.4rem;line-height:1.05;margin:6px 0 2px}
+  .note.impostor .word{color:var(--coral);font-size:1.9rem}
+  .note small{display:block;color:#7c7259;margin-top:10px;font-size:.86rem;font-style:italic}
+
+  .turnbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;color:var(--mute);font-size:.86rem}
+  .turnbar .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(216,169,63,.15)}
+  .feed{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto}
+  .feed li{display:flex;gap:10px;align-items:baseline;background:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+  .feed .who{color:var(--teal);font-weight:600;font-size:.85rem;min-width:max-content}
+  .feed .what{font-family:Fraunces,serif;font-size:1.15rem}
+  .feed li.mine .who{color:var(--gold)}
+  .you-up{border-color:var(--gold)!important}
+  .opts{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+  .opts button{background:var(--ink);border:1px solid var(--line);color:inherit;text-align:left;font-weight:500}
+  .opts button:hover{border-color:var(--coral)}
+  .opts button.chosen{border-color:var(--coral);background:rgba(226,85,60,.12)}
+  .verdict{text-align:center}
+  .verdict .who{font-family:Fraunces,serif;font-weight:900;font-size:2rem;margin:.2em 0;color:var(--coral)}
+  .verdict.caught .who{color:var(--teal)}
+  .tally{list-style:none;padding:0;margin:16px 0 0;display:flex;flex-direction:column;gap:6px}
+  .tally li{display:flex;justify-content:space-between;color:var(--mute);font-size:.9rem;border-bottom:1px dashed var(--line);padding-bottom:6px}
+  .err{color:var(--coral);font-size:.88rem;margin-top:10px;min-height:1.1em}
+  .wait{text-align:center;color:var(--mute);padding:18px 0;font-style:italic}
+  footer{color:var(--mute);font-size:.74rem;margin-top:22px;text-align:center;opacity:.7}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Démasquez l'intrus</div>
+    <h1>Le jeu de l'<em>imposteur</em></h1>
+  </header>
+  <main class="stage" id="stage"></main>
+  <footer>Tout le monde reçoit le même mot — sauf un.</footer>
+
+<script>
+const $ = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstChild;};
+const stage = document.getElementById('stage');
+let ws, myName=null, currentTurn=null;
+
+function connect(){
+  const proto = location.protocol==='https:'?'wss':'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onmessage = (e)=>route(JSON.parse(e.data));
+  ws.onclose = ()=>{ if(myName) renderDisconnected(); };
+}
+const send = (o)=>ws && ws.readyState===1 && ws.send(JSON.stringify(o));
+
+function route(m){
+  switch(m.type){
+    case 'lobby': renderLobby(m); break;
+    case 'role': renderRole(m); break;
+    case 'turn': currentTurn=m.current; updateTurn(m); break;
+    case 'clue': addClue(m); break;
+    case 'vote': renderVote(m); break;
+    case 'result': renderResult(m); break;
+    case 'error': showError(m.text); break;
+  }
+}
+
+/* --- Entrée / pseudo --- */
+function renderJoin(){
+  stage.innerHTML='';
+  const card=$(`<div class="card">
+    <label for="n">Ton pseudo</label>
+    <input id="n" type="text" maxlength="20" placeholder="Ex. Camille" autocomplete="off">
+    <div class="row"><button id="go">Rejoindre la partie</button></div>
+    <p class="err" id="err"></p>
+    <p class="hint">Il faut au moins 3 joueurs. Le premier arrivé lance la partie.</p>
+  </div>`);
+  stage.appendChild(card);
+  const input=card.querySelector('#n'), go=card.querySelector('#go');
+  const submit=()=>{const v=input.value.trim(); if(v){myName=v; send({type:'join',name:v});}};
+  go.onclick=submit;
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')submit();});
+  input.focus();
+}
+
+/* --- Salon d'attente --- */
+function renderLobby(m){
+  const isHost=m.host;
+  stage.innerHTML='';
+  if(!myName){ renderJoin(); return; }
+  const card=$(`<div class="card">
+    <label>Joueurs connectés</label>
+    <ul class="players"></ul>
+    <p class="count"></p>
+    ${isHost
+      ? `<div class="row"><button id="start">Lancer la partie</button></div>`
+      : `<p class="wait">En attente que l'hôte lance la partie…</p>`}
+  </div>`);
+  const ul=card.querySelector('.players');
+  m.players.forEach(n=>{const li=$(`<li>${esc(n)}</li>`); if(n===myName)li.classList.add('me'); ul.appendChild(li);});
+  card.querySelector('.count').textContent =
+    `${m.players.length} / ${m.minPlayers} minimum`;
+  stage.appendChild(card);
+  if(isHost){
+    const b=card.querySelector('#start');
+    b.disabled=!m.canStart;
+    if(!m.canStart) b.textContent=`Encore ${m.minPlayers-m.players.length} joueur(s)…`;
+    b.onclick=()=>send({type:'start'});
+  }
+}
+
+/* --- Révélation du rôle (note pliée) --- */
+function renderRole(m){
+  stage.innerHTML='';
+  const note=$(`<div class="note ${m.impostor?'impostor':''}">
+    <div class="note-inner">
+      <div class="seal">Note confidentielle</div>
+      <div class="tap">Touche pour ouvrir</div>
+    </div>
+  </div>`);
+  const inner=note.querySelector('.note-inner');
+  let opened=false;
+  const open=()=>{
+    if(opened)return; opened=true; note.classList.add('peek');
+    inner.innerHTML = m.impostor
+      ? `<div class="seal">Ton rôle</div><div class="word">Imposteur</div>
+         <small>Tu ne connais pas le mot. Bluffe pour te fondre.</small>`
+      : `<div class="seal">Le mot secret</div><div class="word">${esc(m.word)}</div>
+         <small>Donne des indices… sans le révéler à l'imposteur.</small>`;
+    setTimeout(()=>note.classList.remove('peek'),420);
+  };
+  inner.onclick=open;
+  stage.appendChild(note);
+  const hint=$(`<p class="wait">La partie commence…</p>`);
+  stage.appendChild(hint);
+}
+
+/* --- Tours d'indices --- */
+let feedReady=false;
+function ensureFeed(){
+  if(feedReady && document.getElementById('feed')) return;
+  stage.innerHTML='';
+  const card=$(`<div class="card">
+    <div class="turnbar"><span class="dot"></span><span id="turnlabel"></span></div>
+    <ul class="feed" id="feed"></ul>
+    <div id="inputzone"></div>
+  </div>`);
+  stage.appendChild(card); feedReady=true;
+}
+function updateTurn(m){
+  ensureFeed();
+  const label=document.getElementById('turnlabel');
+  const mine = m.current===myName;
+  label.textContent = `Tour ${m.round}/${m.totalRounds} — `+(mine?'à toi de jouer':`au tour de ${m.current}`);
+  const zone=document.getElementById('inputzone');
+  zone.innerHTML='';
+  if(mine){
+    const box=$(`<div>
+      <div class="row">
+        <input id="clue" class="you-up" type="text" maxlength="40" placeholder="Ton mot lié au secret" autocomplete="off">
+      </div>
+      <div class="row"><button id="sendclue">Proposer ce mot</button></div>
+    </div>`);
+    zone.appendChild(box);
+    const inp=box.querySelector('#clue'), btn=box.querySelector('#sendclue');
+    const go=()=>{const v=inp.value.trim(); if(v){send({type:'clue',value:v}); zone.innerHTML='<p class="wait">Mot envoyé.</p>';}};
+    btn.onclick=go; inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();}); inp.focus();
+  } else {
+    zone.innerHTML='<p class="wait">En attente…</p>';
+  }
+}
+function addClue(m){
+  ensureFeed();
+  const feed=document.getElementById('feed');
+  const li=$(`<li><span class="who">${esc(m.player)}</span><span class="what">${esc(m.value)}</span></li>`);
+  if(m.player===myName) li.classList.add('mine');
+  feed.appendChild(li); feed.scrollTop=feed.scrollHeight;
+}
+
+/* --- Vote --- */
+function renderVote(m){
+  feedReady=false;
+  stage.innerHTML='';
+  const card=$(`<div class="card">
+    <label>Qui est l'imposteur ?</label>
+    <div class="opts" id="opts"></div>
+    <p class="err" id="err"></p>
+  </div>`);
+  const opts=card.querySelector('#opts');
+  m.options.forEach(n=>{
+    const b=$(`<button>${esc(n)}</button>`);
+    b.onclick=()=>{
+      [...opts.children].forEach(c=>c.classList.remove('chosen'));
+      b.classList.add('chosen');
+      send({type:'vote',value:n});
+      opts.querySelectorAll('button').forEach(x=>x.disabled=true);
+      card.querySelector('#err').textContent='Vote enregistré. En attente des autres…';
+      card.querySelector('#err').style.color='var(--mute)';
+    };
+    opts.appendChild(b);
+  });
+  stage.appendChild(card);
+}
+
+/* --- Résultat --- */
+function renderResult(m){
+  stage.innerHTML='';
+  const cls = m.caught?'caught':'';
+  const card=$(`<div class="card verdict ${cls}">
+    <div class="eyebrow" style="color:var(--gold)">L'imposteur était</div>
+    <div class="who">${esc(m.impostor)}</div>
+    <p class="hint">${esc(m.text)}</p>
+    <ul class="tally" id="tally"></ul>
+    <div class="row" id="actions"></div>
+  </div>`);
+  const tally=card.querySelector('#tally');
+  Object.entries(m.tally).sort((a,b)=>b[1]-a[1]).forEach(([n,c])=>{
+    tally.appendChild($(`<li><span>${esc(n)}</span><span>${c} voix</span></li>`));
+  });
+  stage.appendChild(card);
+  const actions=card.querySelector('#actions');
+  const again=$(`<button id="again">Nouvelle partie</button>`);
+  again.onclick=()=>send({type:'again'});
+  actions.appendChild(again);
+}
+
+function renderDisconnected(){
+  stage.innerHTML='<div class="card"><p class="wait">Connexion perdue. Recharge la page pour revenir.</p></div>';
+}
+function showError(t){
+  const e=document.getElementById('err');
+  if(e){e.textContent=t; e.style.color='var(--coral)';} else alert(t);
+}
+const esc=(s)=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+renderJoin();
+connect();
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: jeu-imposteur
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      - key: ROUNDS
+        value: 2
+      # facile (mots courants) | moyen | difficile (mots rares) | tout
+      - key: DIFFICULTY
+        value: moyen
