@@ -58,7 +58,7 @@ def load_words() -> list[str]:
     lo, hi = BANDS.get(DIFFICULTY, BANDS["moyen"])
     pool: list[str] = []
     try:
-        lines = (Path(__file__).parent / "words.fr.txt").read_text(encoding="utf-8").splitlines()
+        lines = (Path(__file__).parent / "words_fr.txt").read_text(encoding="utf-8").splitlines()
     except FileNotFoundError:
         return FALLBACK_WORDS
     for line in lines:
@@ -75,7 +75,7 @@ def load_words() -> list[str]:
 
 WORDS = load_words()
 
-INDEX_HTML = (Path(__file__).parent / "templates" / "index.html").read_text(encoding="utf-8")
+INDEX_HTML = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
 
 app = FastAPI()
 
