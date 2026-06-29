@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<!-- Le jeu de l'imposteur — interface web — v0.2.0 -->
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Le jeu de l'imposteur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#15141d; --ink-2:#1e1c2b; --line:#322f44;
+    --paper:#efe6d2; --paper-ink:#2a2417;
+    --coral:#e2553c; --teal:#5fa195; --gold:#d8a93f; --mute:#8b88a3;
+    --shadow:0 18px 40px -18px rgba(0,0,0,.7);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #221f33 0%, transparent 60%),
+      var(--ink);
+    color:#ece9f5; font-family:Inter,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; min-height:100dvh;
+    display:flex; flex-direction:column; align-items:center;
+    padding:env(safe-area-inset-top) 18px calc(24px + env(safe-area-inset-bottom));
+  }
+  header{text-align:center;margin:34px 0 22px}
+  .eyebrow{font-size:.72rem;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:600}
+  h1{font-family:Fraunces,serif;font-weight:900;font-size:clamp(2.1rem,8vw,3.1rem);line-height:1;margin:.18em 0 0;letter-spacing:-.01em}
+  h1 em{font-style:italic;color:var(--coral)}
+  .stage{width:100%;max-width:520px;flex:1;display:flex;flex-direction:column;justify-content:flex-start}
+  .card{background:var(--ink-2);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow)}
+  .hint{color:var(--mute);font-size:.92rem;line-height:1.5}
+  label{display:block;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin:0 0 8px}
+  input[type=text]{
+    width:100%;background:var(--ink);border:1px solid var(--line);color:inherit;
+    font:500 1.05rem Inter,sans-serif;padding:14px 16px;border-radius:12px;outline:none;
+  }
+  input[type=text]:focus{border-color:var(--gold)}
+  button{
+    font:600 1rem Inter,sans-serif;border:none;border-radius:12px;padding:14px 18px;
+    background:var(--coral);color:#fff;cursor:pointer;width:100%;transition:filter .15s,transform .05s;
+  }
+  button:hover{filter:brightness(1.07)} button:active{transform:translateY(1px)}
+  button:disabled{background:var(--line);color:var(--mute);cursor:not-allowed;filter:none}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--mute)}
+  .row{display:flex;gap:10px;margin-top:14px}
+  .players{list-style:none;margin:16px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+  .players li{background:var(--ink);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:.92rem}
+  .players li.me{border-color:var(--teal);color:#dffaf3}
+  .players li.absent{opacity:.45;font-style:italic}
+  .count{color:var(--mute);font-size:.85rem;margin-top:14px}
+
+  /* sélecteur de difficulté */
+  .levels{display:flex;gap:8px;margin-top:6px}
+  .levels button{flex:1;width:auto;padding:11px 8px;font:600 .82rem Inter,sans-serif;
+    background:var(--ink);border:1px solid var(--line);color:var(--mute);border-radius:12px;line-height:1.25}
+  .levels button .lv-n{display:block;font-family:Fraunces,serif;font-weight:900;font-size:1.05rem;color:inherit}
+  .levels button.on{border-color:var(--gold);color:#fff;background:rgba(216,169,63,.12)}
+  .lvl-tag{display:inline-block;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:4px 12px;margin-top:4px}
+
+  /* note pliée : la révélation du rôle */
+  .note{perspective:1200px;margin:6px auto 0;max-width:360px}
+  .note-inner{cursor:pointer;border-radius:16px;background:linear-gradient(160deg,#f6efe0,var(--paper));
+    color:var(--paper-ink);padding:30px 24px;text-align:center;box-shadow:var(--shadow);
+    transition:transform .5s cubic-bezier(.2,.7,.2,1);transform-style:preserve-3d;position:relative}
+  .note.peek .note-inner{transform:rotateX(-6deg) scale(1.01)}
+  .note .seal{font-size:.74rem;letter-spacing:.28em;text-transform:uppercase;color:#9a8a5f;font-weight:600}
+  .note .tap{font-family:Fraunces,serif;font-size:1.5rem;font-weight:600;margin-top:10px}
+  .note .word{font-family:Fraunces,serif;font-weight:900;font-size:2.4rem;line-height:1.05;margin:6px 0 2px}
+  .note.impostor .word{color:var(--coral);font-size:1.9rem}
+  .note small{display:block;color:#7c7259;margin-top:10px;font-size:.86rem;font-style:italic}
+
+  .err{color:var(--coral);font-size:.88rem;margin-top:10px;min-height:1.1em}
+  .wait{text-align:center;color:var(--mute);padding:18px 0;font-style:italic}
+
+  /* bandeau de reconnexion */
+  .banner{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translateX(-50%);
+    background:var(--ink-2);border:1px solid var(--gold);color:#f3e6c4;border-radius:999px;
+    padding:8px 18px;font-size:.82rem;box-shadow:var(--shadow);z-index:50;display:none;
+    align-items:center;gap:9px}
+  .banner.show{display:flex}
+  .banner .pulse{width:8px;height:8px;border-radius:50%;background:var(--gold);
+    animation:pulse 1.1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+
+  footer{color:var(--mute);font-size:.74rem;margin-top:22px;text-align:center;opacity:.7}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Démasquez l'intrus</div>
+    <h1>Le jeu de l'<em>imposteur</em></h1>
+  </header>
+  <div class="banner" id="banner"><span class="pulse"></span><span id="banner-txt"></span></div>
+  <main class="stage" id="stage"></main>
+  <footer><a href="/" style="color:inherit;text-decoration:none">← La salle de jeux</a> · Tout le monde reçoit le même mot, sauf un. · v0.2.0</footer>
+
+<script>
+const $ = (h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstChild;};
+const stage = document.getElementById('stage');
+const bannerEl = document.getElementById('banner');
+const bannerTxt = document.getElementById('banner-txt');
+
+const LEVEL_LABELS = {1:'Courant', 2:'Courant + concepts', 3:'Toute la base'};
+
+let ws;
+let curLevel = 2;                 // niveau de difficulté sélectionné
+let session = {token:null, name:null};
+let reconnectTimer = null;
+
+/* --- Session persistante (localStorage) --- */
+try{
+  session.token = localStorage.getItem('imp_token');
+  session.name  = localStorage.getItem('imp_name');
+}catch(e){}
+function saveSession(){
+  try{
+    if(session.token) localStorage.setItem('imp_token', session.token);
+    if(session.name)  localStorage.setItem('imp_name',  session.name);
+  }catch(e){}
+}
+
+/* --- Connexion + reconnexion automatique --- */
+function connect(){
+  const proto = location.protocol==='https:'?'wss':'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = ()=>{
+    clearTimeout(reconnectTimer);
+    // Si une session existe, on rebranche automatiquement avec le jeton.
+    if(session.token || session.name){
+      send({type:'join', token:session.token||undefined, name:session.name||undefined});
+    }
+  };
+  ws.onmessage = (e)=>route(JSON.parse(e.data));
+  ws.onclose = ()=>scheduleReconnect();
+  ws.onerror = ()=>{ try{ws.close();}catch(e){} };
+}
+function scheduleReconnect(){
+  if(!(session.token || session.name)) return;  // jamais entré : on garde le formulaire
+  showBanner('Reconnexion…');
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(connect, 1500);
+}
+// Réveil du téléphone → on rétablit la connexion sans attendre.
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible' && (session.token||session.name)
+     && (!ws || ws.readyState>1)) connect();
+});
+
+const send = (o)=>ws && ws.readyState===1 && ws.send(JSON.stringify(o));
+function showBanner(t){ bannerTxt.textContent=t; bannerEl.classList.add('show'); }
+function hideBanner(){ bannerEl.classList.remove('show'); }
+
+function route(m){
+  switch(m.type){
+    case 'session': session.token=m.token; saveSession(); break;
+    case 'lobby':   hideBanner(); renderLobby(m); break;
+    case 'role':    hideBanner(); renderRole(m); break;
+    case 'error':   showError(m.text); break;
+  }
+}
+
+/* --- Entrée / pseudo --- */
+function renderJoin(){
+  stage.innerHTML='';
+  const card=$(`<div class="card">
+    <label for="n">Ton pseudo</label>
+    <input id="n" type="text" maxlength="20" placeholder="Ex. Camille" autocomplete="off">
+    <div class="row"><button id="go">Rejoindre la partie</button></div>
+    <p class="err" id="err"></p>
+    <p class="hint">Il faut au moins 3 joueurs. Le premier arrivé lance la partie.</p>
+  </div>`);
+  stage.appendChild(card);
+  const input=card.querySelector('#n'), go=card.querySelector('#go');
+  const submit=()=>{const v=input.value.trim(); if(v){session.name=v; saveSession(); send({type:'join',name:v});}};
+  go.onclick=submit;
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')submit();});
+  input.focus();
+}
+
+/* --- État « reconnexion » au chargement (session connue) --- */
+function renderResuming(){
+  stage.innerHTML='';
+  stage.appendChild($(`<div class="card"><p class="wait">Reconnexion à la partie…</p></div>`));
+}
+
+/* --- Salon d'attente --- */
+function renderLobby(m){
+  if(!session.name){ renderJoin(); return; }
+  curLevel = m.level || curLevel;
+  const isHost=m.host;
+  const connected=m.players.filter(p=>!p.absent).length;
+  stage.innerHTML='';
+  const card=$(`<div class="card">
+    <label>Joueurs connectés</label>
+    <ul class="players"></ul>
+    <p class="count"></p>
+    ${isHost ? `
+      <label style="margin-top:18px">Niveau de difficulté</label>
+      <div class="levels" id="levels">
+        <button data-lv="1"><span class="lv-n">1</span>Courant</button>
+        <button data-lv="2"><span class="lv-n">2</span>+ Concepts</button>
+        <button data-lv="3"><span class="lv-n">3</span>Tout</button>
+      </div>
+      <div class="row"><button id="start">Nouvelle partie</button></div>`
+    : `<p class="wait">En attente que l'hôte lance la partie…</p>`}
+  </div>`);
+  const ul=card.querySelector('.players');
+  m.players.forEach(p=>{
+    const li=$(`<li>${esc(p.name)}${p.absent?' · absent':''}</li>`);
+    if(p.name===session.name) li.classList.add('me');
+    if(p.absent) li.classList.add('absent');
+    ul.appendChild(li);
+  });
+  card.querySelector('.count').textContent = `${connected} / ${m.minPlayers} minimum`;
+  stage.appendChild(card);
+
+  if(isHost){
+    const levelsEl=card.querySelector('#levels');
+    const paint=()=>levelsEl.querySelectorAll('button').forEach(b=>
+      b.classList.toggle('on', Number(b.dataset.lv)===curLevel));
+    levelsEl.querySelectorAll('button').forEach(b=>
+      b.onclick=()=>{ curLevel=Number(b.dataset.lv); paint(); });
+    paint();
+    const b=card.querySelector('#start');
+    b.disabled=!m.canStart;
+    if(!m.canStart) b.textContent=`Encore ${m.minPlayers-connected} joueur(s)…`;
+    b.onclick=()=>send({type:'newgame', level:curLevel});
+  }
+}
+
+/* --- Révélation du rôle (note pliée) --- */
+function renderRole(m){
+  curLevel = m.level || curLevel;
+  stage.innerHTML='';
+  const note=$(`<div class="note ${m.impostor?'impostor':''}">
+    <div class="note-inner">
+      <div class="seal">Note confidentielle</div>
+      <div class="tap">Touche pour ouvrir</div>
+    </div>
+  </div>`);
+  const inner=note.querySelector('.note-inner');
+  let opened=false;
+  const open=()=>{
+    if(opened)return; opened=true; note.classList.add('peek');
+    inner.innerHTML = m.impostor
+      ? `<div class="seal">Ton rôle</div><div class="word">Vous êtes l'imposteur</div>
+         <small>Tu ne connais pas le mot. À toi de te fondre dans la discussion.</small>`
+      : `<div class="seal">Le mot secret</div><div class="word">${esc(m.word)}</div>
+         <small>Ne le révèle pas… surtout pas à l'imposteur.</small>`;
+    setTimeout(()=>note.classList.remove('peek'),420);
+  };
+  inner.onclick=open;
+  stage.appendChild(note);
+  if(m.host){
+    const actions=$(`<div style="max-width:360px;margin:18px auto 0;text-align:center">
+      <div class="lvl-tag">Niveau ${m.level} · ${esc(LEVEL_LABELS[m.level]||'')}</div>
+      <div class="row"><button id="redeal">Nouvelle partie</button></div>
+    </div>`);
+    actions.querySelector('#redeal').onclick=()=>send({type:'newgame', level:curLevel});
+    stage.appendChild(actions);
+  } else {
+    stage.appendChild($(`<p class="wait">Discutez de vive voix. L'hôte relancera une partie.</p>`));
+  }
+}
+
+function showError(t){
+  const e=document.getElementById('err');
+  if(e){ e.textContent=t; }
+  else { renderJoin(); const e2=document.getElementById('err'); if(e2)e2.textContent=t; }
+}
+const esc=(s)=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* --- Démarrage --- */
+if(session.token || session.name) renderResuming();
+else renderJoin();
+connect();
+</script>
+</body>
+</html>

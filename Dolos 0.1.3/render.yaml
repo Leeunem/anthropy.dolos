@@ -1,0 +1,15 @@
+# Le jeu de l'imposteur — déploiement Render — v0.2.0
+services:
+  - type: web
+    name: jeu-imposteur
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      # Niveau de difficulté par défaut (l'hôte peut le changer avant chaque partie) :
+      #   1 = mots courants | 2 = courants + concepts | 3 = toute la base
+      - key: DIFFICULTY_LEVEL
+        value: "2"
