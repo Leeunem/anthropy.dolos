@@ -1,20 +1,28 @@
 #!/usr/bin/env python3
 """
-Le jeu de l'imposteur — version web (FastAPI + WebSocket).  v0.1.2
+La salle de jeux — version web (FastAPI + WebSocket).  v0.2.0
 
-L'application sert de « distributeur de rôles » : à chaque clic sur « Nouvelle
-partie », elle tire au sort un imposteur parmi les joueurs connectés, choisit un
-mot dans la bibliothèque (selon le niveau de difficulté retenu par l'hôte), puis
-affiche « Vous êtes l'imposteur » à l'intrus et le mot secret à tous les autres.
+La page d'accueil est désormais une GALERIE des jeux disponibles. Chaque jeu est
+décrit dans le registre GAMES ci-dessous : pour en ajouter un, il suffit d'une
+nouvelle entrée (et de son fichier HTML) — la galerie se met à jour toute seule.
 
-Nouveautés 0.1.2 :
-  • Sessions persistantes : chaque joueur reçoit un jeton conservé côté
-    navigateur. À la reconnexion (réveil du téléphone), le jeton le rebranche
-    sur son Player existant — pseudo, rôle et place préservés — avec un délai
-    de grâce de 60 s avant tout retrait définitif.
-  • Sélecteur de difficulté (3 niveaux cumulatifs) choisi avant chaque partie.
+Jeux :
+  • L'imposteur — distributeur de rôles (mot secret partagé, sauf un intrus).
+  • Le quizz    — à venir.
 
-Un seul port HTTP : page web et WebSockets passent par le même service (PORT).
+L'imposteur (inchangé fonctionnellement) :
+  À chaque clic sur « Nouvelle partie », l'app tire au sort un imposteur parmi
+  les joueurs connectés, choisit un mot dans la bibliothèque (selon le niveau de
+  difficulté retenu par l'hôte), puis affiche « Vous êtes l'imposteur » à
+  l'intrus et le mot secret à tous les autres.
+
+Routes :
+  /              → galerie des jeux
+  /jeu/{slug}    → un jeu (imposteur pour l'instant)
+  /ws            → WebSocket de l'imposteur
+  /health        → état du service
+
+Un seul port HTTP : pages web et WebSockets passent par le même service (PORT).
 
 Lancement local :
     pip install -r requirements.txt
@@ -31,9 +39,78 @@ from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
-__version__ = "0.1.2"
+__version__ = "0.2.0"
 
-# --- Réglages du jeu (modifiables) ------------------------------------------
+
+# ----------------------------------------------------------------------------
+# Fichiers : résilient à l'emplacement (racine ou templates/)
+# ----------------------------------------------------------------------------
+def find_file(name: str) -> Path:
+    here = Path(__file__).parent
+    for cand in (here / name, here / "templates" / name):
+        if cand.exists():
+            return cand
+    return here / name  # défaut : racine (lèvera l'erreur attendue si absent)
+
+
+# ----------------------------------------------------------------------------
+# Registre des jeux — ajouter un jeu = ajouter une entrée + son fichier HTML
+# ----------------------------------------------------------------------------
+GAMES = [
+    {
+        "slug": "imposteur",
+        "title": "L'imposteur",
+        "eyebrow": "Démasquez l'intrus",
+        "desc": "Tout le monde reçoit le même mot — sauf un. À l'intrus de se "
+                "fondre dans la discussion sans se trahir.",
+        "tag": "3 joueurs et +",
+        "accent": "coral",
+        "file": "imposteur.html",   # None tant que le jeu n'est pas prêt
+    },
+    {
+        "slug": "quizz",
+        "title": "Le quizz",
+        "eyebrow": "À venir",
+        "desc": "Un quizz à plusieurs, en ligne. Le prochain jeu de la salle.",
+        "tag": "Bientôt",
+        "accent": "teal",
+        "file": None,
+    },
+]
+
+GAME_FILES = {g["slug"]: g["file"] for g in GAMES if g["file"]}
+
+
+def _card(g: dict) -> str:
+    live = bool(g["file"])
+    head = (
+        f'<div class="game-eyebrow">{g["eyebrow"]}</div>'
+        f'<h2>{g["title"]}</h2><p>{g["desc"]}</p>'
+    )
+    if live:
+        return (
+            f'<a class="game accent-{g["accent"]}" href="/jeu/{g["slug"]}">{head}'
+            f'<div class="game-foot"><span class="tag">{g["tag"]}</span>'
+            f'<span class="cta">Jouer →</span></div></a>'
+        )
+    return (
+        f'<div class="game soon accent-{g["accent"]}">{head}'
+        f'<div class="game-foot"><span class="tag">{g["tag"]}</span></div></div>'
+    )
+
+
+def render_gallery() -> str:
+    template = find_file("accueil.html").read_text(encoding="utf-8")
+    cards = "\n".join(_card(g) for g in GAMES)
+    return template.replace("<!--CARDS-->", cards)
+
+
+GALLERY_HTML = render_gallery()
+GAME_HTML = {slug: find_file(name).read_text(encoding="utf-8")
+             for slug, name in GAME_FILES.items()}
+
+
+# --- Réglages de l'imposteur (modifiables) ----------------------------------
 MIN_PLAYERS = 3
 GRACE_SECONDS = int(os.environ.get("GRACE_SECONDS", "60"))  # un déconnecté reste « absent » ce temps
 
@@ -81,7 +158,7 @@ def load_corpus() -> list[tuple[str, float]]:
     if os.environ.get("WORDS"):
         return [(w.strip(), 1e9) for w in os.environ["WORDS"].split(",") if w.strip()]
     try:
-        lines = (Path(__file__).parent / "words_fr.txt").read_text(encoding="utf-8").splitlines()
+        lines = find_file("words_fr.txt").read_text(encoding="utf-8").splitlines()
     except FileNotFoundError:
         return [(w, 1e9) for w in FALLBACK_WORDS]
     corpus: list[tuple[str, float]] = []
@@ -106,13 +183,11 @@ def pool_for_level(level: int) -> list[str]:
     return pool or FALLBACK_WORDS
 
 
-INDEX_HTML = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
-
 app = FastAPI()
 
 
 # ----------------------------------------------------------------------------
-# Modèle
+# Modèle (imposteur)
 # ----------------------------------------------------------------------------
 class Player:
     """Identité durable, découplée de la connexion : c'est le jeton (token),
@@ -240,8 +315,20 @@ async def _remove_after_grace(player: Player):
 # Routes
 # ----------------------------------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
-async def index():
-    return INDEX_HTML
+async def home():
+    return GALLERY_HTML
+
+
+@app.get("/jeu/{slug}", response_class=HTMLResponse)
+async def jeu(slug: str):
+    html = GAME_HTML.get(slug)
+    if html is None:
+        return HTMLResponse(
+            "<p style='font-family:sans-serif'>Jeu introuvable. "
+            "<a href='/'>Retour à la salle de jeux</a>.</p>",
+            status_code=404,
+        )
+    return html
 
 
 @app.get("/health")

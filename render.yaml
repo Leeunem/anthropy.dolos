@@ -1,4 +1,4 @@
-# Le jeu de l'imposteur — déploiement Render — v0.1.2
+# Le jeu de l'imposteur — déploiement Render — v0.2.0
 services:
   - type: web
     name: jeu-imposteur

@@ -1,4 +1,29 @@
-# Journal des modifications — Le jeu de l'imposteur
+# Journal des modifications — La salle de jeux
+
+## [0.2.0] — 2026-06-29
+
+### Ajouté
+- **Galerie d'accueil multi-jeux.** La page `/` n'est plus le jeu lui-même mais
+  une galerie présentant tous les jeux disponibles. Les cartes sont générées à
+  partir d'un registre `GAMES` dans `app.py` : ajouter un jeu se résume à une
+  nouvelle entrée (titre, description, accent, fichier HTML) — la galerie se met
+  à jour automatiquement. Nouveau fichier `accueil.html` (gabarit de la galerie,
+  les cartes sont injectées à l'emplacement `<!--CARDS-->`).
+- **Carte « Le quizz » (à venir).** Prochain jeu prévu, affiché en carte
+  estompée avec le libellé « Bientôt » tant que son fichier n'existe pas.
+- **Lien de retour** vers la salle de jeux depuis l'imposteur.
+
+### Modifié
+- L'imposteur est désormais servi sous **`/jeu/imposteur`** (route générique
+  `/jeu/{slug}`). Son fichier passe de `index.html` à **`imposteur.html`** ; la
+  logique de jeu (sessions, délai de grâce, niveaux, WebSocket `/ws`) est
+  **inchangée**.
+- `find_file()` localise les fichiers à la racine ou dans `templates/` ; il sert
+  aussi au chargement de `words_fr.txt`.
+
+### Fichiers touchés
+- `app.py` · `accueil.html` (nouveau) · `imposteur.html` (ex-`index.html`)
+- `render.yaml` · `CHANGELOG.md`
 
 ## [0.1.2] — 2026-06-25
 
